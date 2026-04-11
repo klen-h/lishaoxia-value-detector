@@ -33,9 +33,9 @@ def fetch_all_quotes(retries=3):
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             
             # 初步过滤：放宽 PE/PB 限制，确保能筛选出足够的候选股
-        # PE 放宽到 60，PB 放宽到 6，市值放宽到 30 亿
-        mask = (df['pe'] > 0) & (df['pe'] < 60) & (df['pb'] > 0) & (df['pb'] < 6) & (df['total_mv'] > 30 * 1e8)
-        df_filtered = df[mask].copy()
+            # PE 放宽到 60，PB 放宽到 6，市值放宽到 30 亿
+            mask = (df['pe'] > 0) & (df['pe'] < 60) & (df['pb'] > 0) & (df['pb'] < 6) & (df['total_mv'] > 30 * 1e8)
+            df_filtered = df[mask].copy()
             
             print(f"全市场 {len(df)} 只标的，初筛出 {len(df_filtered)} 只价值候选股")
             return df_filtered

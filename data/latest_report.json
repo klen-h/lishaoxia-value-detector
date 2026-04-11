@@ -1,0 +1,15 @@
+{
+  "update_date": "2026-04-11",
+  "market": {
+    "trend": "BULL",
+    "description": "🐂 牛市 - 估值偏高",
+    "suggestion": "获利了结，降低仓位",
+    "allocation": {
+      "core": 35,
+      "satellite": 30,
+      "cash": 35,
+      "tactics": "获利减仓"
+    }
+  },
+  "top_picks": []
+}

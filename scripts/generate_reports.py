@@ -33,7 +33,7 @@ def generate_daily_report():
 - 卫星仓: {market['overall']['allocation']['satellite']}%
 - 现金: {market['overall']['allocation']['cash']}%
 
-**沪深300估值**: PE {market['hs300']['pe_ttm']} | PB {market['hs300']['pb']} | 股息率 {market['hs300']['dividend_yield']}%
+**沪深300估值**: PE {market['hs300']['pe_ttm']} | PB {market['hs300']['pb']}
 
 ---
 
@@ -63,8 +63,8 @@ def generate_daily_report():
 
 - **当前价**: ¥{s['price']}
 - **估值**: PE {s['metrics'].get('pe', 'N/A')} | PB {s['metrics'].get('pb', 'N/A')}
-- **股息率**: {s['metrics'].get('dividend_yield', 'N/A')}%
 - **ROE**: {s['metrics'].get('roe', 'N/A')}%
+- **净利增长**: {s['metrics'].get('profit_growth', 'N/A')}%
 - **建议**: {s['suggestion']['action']}，目标仓位{s['suggestion']['allocation']}
 - **止损**: ¥{s['suggestion']['stop_loss']}
 

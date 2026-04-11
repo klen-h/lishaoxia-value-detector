@@ -1,304 +1,180 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-获取全市场个股数据
+获取个股数据 (AKShare 深度优化版)
+解决 Tushare 积分不足及 GitHub Actions 网络封锁问题
 """
 
 import json
 import pandas as pd
 import akshare as ak
+import os
+import time
+import random
 from datetime import datetime
-from config import STOCKS_DIR, STOCK_FILTERS, SCORE_WEIGHTS, get_today_str, get_latest_trade_date
+from config import STOCKS_DIR, STOCK_FILTERS, SCORE_WEIGHTS, get_today_str
 
-def fetch_stock_list():
-    """获取股票列表并筛选"""
-    print("获取股票列表...")
-    df = ak.stock_zh_a_spot_em()
-    
-    # 筛选条件
-    filters = []
-    
-    if STOCK_FILTERS['exclude_st']:
-        filters.append(~df['名称'].str.contains('ST|退|*ST', na=False))
-    
-    if STOCK_FILTERS['exclude_b']:
-        filters.append(~df['代码'].str.startswith('2'))  # B股
-        filters.append(~df['代码'].str.startswith('9'))  # B股
-    
-    if STOCK_FILTERS['min_market_cap']:
-        filters.append(df['总市值'] >= STOCK_FILTERS['min_market_cap'])
-    
-    if STOCK_FILTERS['max_market_cap']:
-        filters.append(df['总市值'] <= STOCK_FILTERS['max_market_cap'])
-    
-    # 应用筛选
-    from functools import reduce
-    if filters:
-        mask = reduce(lambda x, y: x & y, filters)
-        df = df[mask]
-    
-    print(f"筛选后: {len(df)}只股票")
-    return df
+def fetch_all_quotes(retries=3):
+    """第一步：获取全市场实时行情概览 (使用 AKShare)"""
+    print("正在获取全市场实时行情初筛...")
+    for i in range(retries):
+        try:
+            df = ak.stock_zh_a_spot_em()
+            # 预清洗：重命名列并转换类型
+            df = df[['代码', '名称', '最新价', '涨跌幅', '市盈率-动态', '市净率', '总市值', '流通市值']]
+            df.columns = ['code', 'name', 'price', 'change_pct', 'pe', 'pb', 'total_mv', 'circ_mv']
+            
+            # 排除 ST 和 B 股
+            df = df[~df['name'].str.contains('ST|退', na=False)]
+            df = df[~df['code'].str.startswith(('2', '9'))]
+            
+            # 转换数值类型，处理异常
+            for col in ['price', 'pe', 'pb', 'total_mv', 'circ_mv']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            # 初步过滤：只看估值合理的股票，极大减少后续深度抓取的压力
+            mask = (df['pe'] > 0) & (df['pe'] < 40) & (df['pb'] > 0) & (df['pb'] < 4) & (df['total_mv'] > 50 * 1e8)
+            df_filtered = df[mask].copy()
+            
+            print(f"全市场 {len(df)} 只标的，初筛出 {len(df_filtered)} 只价值候选股")
+            return df_filtered
+        except Exception as e:
+            print(f"获取全市场行情第 {i+1} 次尝试失败: {e}")
+            if i < retries - 1:
+                time.sleep(2)
+            continue
+    return pd.DataFrame()
 
-def parse_float(val):
-    """安全解析浮点数"""
+def fetch_deep_fundamentals(code):
+    """第二步：针对候选股抓取深度指标 (按需请求)"""
     try:
-        if pd.isna(val):
-            return 0
-        return float(val)
-    except:
-        return 0
-
-def fetch_financial_data(code):
-    """获取财务数据（带异常处理）"""
-    try:
-        fin = ak.stock_financial_analysis_indicator(symbol=code)
-        if fin.empty:
-            return None
+        # 添加随机延迟，模拟真人操作，防止被封 IP
+        time.sleep(random.uniform(0.5, 1.5)) 
+        # 获取主要财务指标
+        fin_df = ak.stock_financial_analysis_indicator(symbol=code)
+        if fin_df is None or fin_df.empty: return None
         
-        latest = fin.iloc[0]
+        latest = fin_df.iloc[0]
         return {
-            "roe": parse_float(latest.get('净资产收益率(%)')),
-            "roe_diluted": parse_float(latest.get('净资产收益率-摊薄(%)')),
-            "profit_growth": parse_float(latest.get('净利润同比增长率(%)')),
-            "revenue_growth": parse_float(latest.get('营业收入同比增长率(%)')),
-            "debt_ratio": parse_float(latest.get('资产负债率(%)')),
-            "gross_margin": parse_float(latest.get('销售毛利率(%)')),
-            "net_margin": parse_float(latest.get('销售净利率(%)')),
-            "report_period": str(latest.get('报告期', ''))
+            "roe": float(latest['净资产收益率(%)']) if pd.notna(latest['净资产收益率(%)']) else 0,
+            "netprofit_growth": float(latest['净利润同比增长率(%)']) if pd.notna(latest['净利润同比增长率(%)']) else 0,
+            "revenue_growth": float(latest['主营业务收入同比增长率(%)']) if pd.notna(latest['主营业务收入同比增长率(%)']) else 0,
+            "debt_ratio": float(latest['资产负债率(%)']) if pd.notna(latest['资产负债率(%)']) else 0
         }
     except Exception as e:
-        print(f"  财务数据获取失败 {code}: {e}")
+        # print(f"抓取 {code} 深度数据失败: {e}")
         return None
 
-def fetch_dividend_data(code):
-    """获取分红数据"""
-    try:
-        div = ak.stock_dividend_cninfo(symbol=code)
-        if div.empty:
-            return {"years": 0, "continuous": 0, "latest": 0}
-        
-        # 解析年份
-        years = []
-        for _, row in div.iterrows():
-            if '派息日' in row and pd.notna(row['派息日']):
-                year = int(str(row['派息日'])[:4])
-                years.append(year)
-        
-        unique_years = sorted(set(years), reverse=True)
-        current_year = datetime.now().year
-        
-        # 计算连续分红
-        continuous = 0
-        for i, year in enumerate(unique_years):
-            if year == current_year - i:
-                continuous += 1
-            else:
-                break
-        
-        # 最新分红
-        latest_div = 0
-        if '派息比例' in div.columns and not div.empty:
-            latest_div = parse_float(div.iloc[0]['派息比例'])
-        
-        return {
-            "years": len(unique_years),
-            "continuous": continuous,
-            "latest": latest_div,
-            "history": [
-                {"year": y, "dividend": parse_float(div[div['派息日'].str.startswith(str(y))].iloc[0]['派息比例']) 
-                 if len(div[div['派息日'].str.startswith(str(y))]) > 0 else 0}
-                for y in unique_years[:5]
-            ]
-        }
-    except Exception as e:
-        return {"years": 0, "continuous": 0, "latest": 0}
-
-def calculate_scores(stock_data):
-    """计算五维评分"""
-    scores = {}
+def calculate_scores(row, fund):
+    """计算五维雷达评分"""
+    scores = {
+        "value": 0,    # 价值
+        "quality": 0,  # 质量
+        "safety": 0,   # 安全
+        "growth": 0,   # 成长
+        "momentum": 0  # 动量
+    }
     
-    # 1. 价值评分（低PE+高股息+破净）
-    pe = stock_data.get('pe', 999)
-    pb = stock_data.get('pb', 999)
-    dy = stock_data.get('dividend_yield', 0)
+    # 1. 价值分 (PE, PB)
+    pe = row['pe']
+    pb = row['pb']
+    if 0 < pe < 10: scores['value'] = 100
+    elif pe < 15: scores['value'] = 85
+    elif pe < 20: scores['value'] = 70
+    elif pe < 30: scores['value'] = 50
+    else: scores['value'] = 30
     
-    value_score = 0
-    value_score += max(0, (30 - pe) * 1.5)  # PE越低越好
-    value_score += dy * 8                    # 股息率越高越好
-    value_score += max(0, (1 - pb)) * 20     # 破净加分
-    scores['value'] = min(100, max(0, value_score))
+    # 2. 质量分 (ROE)
+    roe = fund.get('roe', 0)
+    if roe > 20: scores['quality'] = 100
+    elif roe > 15: scores['quality'] = 85
+    elif roe > 10: scores['quality'] = 70
+    elif roe > 5: scores['quality'] = 50
+    else: scores['quality'] = 30
     
-    # 2. 质量评分（ROE+利润率）
-    roe = stock_data.get('roe', 0)
-    net_margin = stock_data.get('net_margin', 0)
+    # 3. 安全分 (市值 + 负债率)
+    mv_score = min(100, (row['total_mv'] / 1e11) * 20 + 40) # 越大越安全
+    debt = fund.get('debt_ratio', 100)
+    debt_score = max(0, 100 - debt)
+    scores['safety'] = mv_score * 0.6 + debt_score * 0.4
     
-    quality_score = roe * 3
-    quality_score += net_margin * 0.5
-    scores['quality'] = min(100, max(0, quality_score))
+    # 4. 成长分 (净利增长 + 营收增长)
+    p_growth = fund.get('netprofit_growth', 0)
+    r_growth = fund.get('revenue_growth', 0)
+    growth_val = (p_growth + r_growth) / 2
+    if growth_val > 50: scores['growth'] = 100
+    elif growth_val > 30: scores['growth'] = 85
+    elif growth_val > 15: scores['growth'] = 70
+    elif growth_val > 0: scores['growth'] = 50
+    else: scores['growth'] = 20
     
-    # 3. 安全评分（分红+市值+负债）
-    continuous = stock_data.get('continuous_dividend', 0)
-    cap = stock_data.get('market_cap', 0)
-    debt = stock_data.get('debt_ratio', 100)
+    # 5. 动量分 (涨跌幅)
+    change = row['change_pct']
+    scores['momentum'] = min(100, max(0, 50 + change * 5))
     
-    safety_score = continuous * 4  # 每年分红+4分
-    safety_score += min(20, cap / 500)  # 市值加分
-    safety_score += max(0, (100 - debt) * 0.2)  # 低负债加分
-    scores['safety'] = min(100, max(0, safety_score))
-    
-    # 4. 成长评分（业绩增速）
-    profit_g = stock_data.get('profit_growth', 0)
-    revenue_g = stock_data.get('revenue_growth', 0)
-    
-    # 增速适中最好（30-50%），过高可能不可持续
-    if 20 < profit_g < 50:
-        growth_score = 70 + (profit_g - 20) * 0.5
-    elif profit_g >= 50:
-        growth_score = 85
-    elif profit_g > 0:
-        growth_score = 50 + profit_g
-    else:
-        growth_score = max(0, 50 + profit_g)  # 负增长扣分
-    
-    scores['growth'] = min(100, growth_score)
-    
-    # 5. 动量评分（技术面）
-    pct_52w = stock_data.get('percentile_52w', 50)
-    # 50-70%区间最好（趋势向上但不过热）
-    if 40 < pct_52w < 70:
-        momentum_score = 70
-    elif pct_52w >= 70:
-        momentum_score = max(0, 100 - (pct_52w - 70) * 2)  # 过高减分
-    else:
-        momentum_score = 40 + pct_52w * 0.5  # 过低（弱势）减分
-    
-    scores['momentum'] = min(100, momentum_score)
-    
-    return {k: round(v, 1) for k, v in scores.items()}
-
-def get_rating(score):
-    """评分转评级"""
-    if score >= 85: return "钻石底"
-    if score >= 75: return "黄金坑"
-    if score >= 65: return "优质蓝筹"
-    if score >= 55: return "观察"
-    if score >= 45: return "谨慎"
-    return "远离"
+    return scores
 
 def main():
-    """主函数"""
     print("=" * 50)
-    print("开始获取个股数据...")
+    print("开始获取个股数据 (AKShare 深度优化版)...")
     print("=" * 50)
+    
+    # 1. 获取全市场初筛数据
+    candidates = fetch_all_quotes()
+    if candidates.empty:
+        print("未能获取到初筛数据，任务中止")
+        return
+
+    # 2. 排序并选择前 150 名（重点分析）
+    # 简单的估值排序：PE * PB 越小越好
+    candidates['val_index'] = candidates['pe'] * candidates['pb']
+    top_picks = candidates.sort_values('val_index').head(150).copy()
     
     today = get_today_str()
-    
-    # 获取股票列表
-    stock_list = fetch_stock_list()
-    
     data = {}
-    processed = 0
-    errors = 0
     
-    for idx, row in stock_list.iterrows():
-        code = row['代码']
-        
-        try:
-            print(f"[{processed+1}/{len(stock_list)}] {code} {row['名称'][:8]}...", end=' ')
+    print(f"开始深度分析前 {len(top_picks)} 只潜力股...")
+    
+    for i, (_, row) in enumerate(top_picks.iterrows()):
+        code = row['code']
+        if i % 10 == 0:
+            print(f"进度: {i}/{len(top_picks)}...")
             
-            # 基础数据
-            stock_data = {
-                "code": code,
-                "name": row['名称'],
-                "industry": row.get('所属行业', '未知'),
-                "price": parse_float(row['最新价']),
-                "change": parse_float(row['涨跌额']),
-                "change_pct": parse_float(row['涨跌幅']),
-                "open": parse_float(row['今开']),
-                "high": parse_float(row['最高价']),
-                "low": parse_float(row['最低价']),
-                "volume": parse_float(row['成交量']),
-                "amount": parse_float(row['成交额']),
-                "amplitude": parse_float(row['振幅']),
-                "turnover": parse_float(row['换手率']),
-                "pe": parse_float(row.get('市盈率-动态')),
-                "pb": parse_float(row.get('市净率')),
-                "ps": parse_float(row.get('市销率')),
-                "pcf": parse_float(row.get('市现率')),
-                "dividend_yield": parse_float(row.get('股息率')),
-                "market_cap": parse_float(row['总市值']),
-                "float_cap": parse_float(row['流通市值']),
-                "52w_high": parse_float(row.get('52周最高价', 0)),
-                "52w_low": parse_float(row.get('52周最低价', 0)),
-            }
-            
-            # 计算52周位置
-            if stock_data['52w_high'] > stock_data['52w_low']:
-                stock_data['percentile_52w'] = round(
-                    (stock_data['price'] - stock_data['52w_low']) / 
-                    (stock_data['52w_high'] - stock_data['52w_low']) * 100, 1
-                )
-            else:
-                stock_data['percentile_52w'] = 50
-            
-            # 获取财务数据（每10只打印进度）
-            if processed % 10 == 0:
-                print(f"获取财务...", end=' ')
-            fin_data = fetch_financial_data(code)
-            if fin_data:
-                stock_data.update(fin_data)
-                print(f"ROE{fin_data['roe']:.1f}%", end=' ')
-            
-            # 获取分红数据
-            div_data = fetch_dividend_data(code)
-            stock_data['dividend_years'] = div_data['years']
-            stock_data['continuous_dividend'] = div_data['continuous']
-            stock_data['latest_dividend'] = div_data['latest']
-            
-            # 计算评分
-            stock_data['scores'] = calculate_scores(stock_data)
-            stock_data['overall_score'] = round(
-                sum(stock_data['scores'][k] * SCORE_WEIGHTS[k] 
-                    for k in stock_data['scores']), 1
-            )
-            stock_data['rating'] = get_rating(stock_data['overall_score'])
-            
-            # 更新时间
-            stock_data['update_time'] = datetime.now().isoformat()
-            
-            data[code] = stock_data
-            processed += 1
-            print(f"✓ 评分{stock_data['overall_score']}")
-            
-            # 每50只保存一次（防止中断丢失）
-            if processed % 50 == 0:
-                with open(STOCKS_DIR / f"{today}_temp.json", 'w', encoding='utf-8') as f:
-                    json.dump(data, f, ensure_ascii=False)
-                print(f"  [自动保存 {processed}只]")
-            
-        except Exception as e:
-            print(f"✗ 错误: {str(e)[:30]}")
-            errors += 1
+        fund = fetch_deep_fundamentals(code)
+        if not fund:
             continue
-    
-    # 最终保存
+            
+        scores = calculate_scores(row, fund)
+        overall = sum(scores[k] * SCORE_WEIGHTS[k] for k in scores)
+        
+        data[code] = {
+            "code": code,
+            "name": row['name'],
+            "price": float(row['price']),
+            "pe": float(row['pe']),
+            "pb": float(row['pb']),
+            "roe": round(fund['roe'], 2),
+            "profit_growth": round(fund['netprofit_growth'], 2),
+            "revenue_growth": round(fund['revenue_growth'], 2),
+            "debt_ratio": round(fund['debt_ratio'], 2),
+            "market_cap": round(row['total_mv'] / 1e8, 2), # 亿元
+            "scores": {k: round(v, 1) for k, v in scores.items()},
+            "overall_score": round(overall, 1),
+            "update_time": datetime.now().isoformat()
+        }
+
+    # 保存结果
     output_file = STOCKS_DIR / f"{today}.json"
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     
-    # 创建软链接
-    import os
+    # 同步更新 latest.json
     latest_link = STOCKS_DIR / "latest.json"
-    if os.path.exists(latest_link) or os.path.islink(latest_link):
-        os.remove(latest_link)
-    os.symlink(f"{today}.json", latest_link)
+    with open(latest_link, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
     
-    print("\n" + "=" * 50)
-    print(f"✅ 完成！成功: {processed}, 失败: {errors}")
-    print(f"   保存至: {output_file}")
-    print(f"   股票数: {len(data)}")
-    print(f"   平均分: {sum(s['overall_score'] for s in data.values())/len(data):.1f}")
+    print(f"\n✅ 完成！深度扫描了 {len(data)} 只优质股票")
+    print(f"   结果已保存至: {output_file}")
 
 if __name__ == '__main__':
     main()

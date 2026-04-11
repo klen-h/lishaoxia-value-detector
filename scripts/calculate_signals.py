@@ -27,14 +27,14 @@ def calculate_diamond_bottom(stock, thresh):
     """钻石底信号"""
     pe = stock.get('pe', 999)
     pb = stock.get('pb', 999)
-    dy = stock.get('dividend_yield', 0)
     roe = stock.get('roe', 0)
+    profit_g = stock.get('profit_growth', 0)
     
     conditions = [
         pe < thresh['pe'] if pe > 0 else False,
         pb < thresh['pb'],
-        dy > thresh['dividend_yield'],
-        roe > thresh['roe']
+        roe > thresh['roe'],
+        profit_g > 0  # 至少盈利增长不为负
     ]
     
     score = sum(conditions)
@@ -45,8 +45,8 @@ def calculate_diamond_bottom(stock, thresh):
             "conditions": {
                 "pe": pe,
                 "pb": pb,
-                "dividend_yield": dy,
-                "roe": roe
+                "roe": roe,
+                "profit_growth": profit_g
             }
         }
     elif score >= 3:  # 满足3项
@@ -56,8 +56,8 @@ def calculate_diamond_bottom(stock, thresh):
             "conditions": {
                 "pe": pe,
                 "pb": pb,
-                "dividend_yield": dy,
-                "roe": roe
+                "roe": roe,
+                "profit_growth": profit_g
             }
         }
     return None
@@ -66,16 +66,15 @@ def calculate_gold_pit(stock, thresh):
     """黄金坑信号"""
     pe = stock.get('pe', 999)
     pb = stock.get('pb', 999)
-    dy = stock.get('dividend_yield', 0)
     roe = stock.get('roe', 0)
     
-    if pe < thresh['pe'] and dy > thresh['dividend_yield'] and roe > thresh['roe']:
+    if pe < thresh['pe'] and roe > thresh['roe']:
         return {
             "level": "中等",
             "score": 75,
             "conditions": {
                 "pe": pe,
-                "dividend_yield": dy,
+                "pb": pb,
                 "roe": roe
             }
         }

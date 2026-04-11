@@ -14,12 +14,14 @@ def load_data():
     today = datetime.now().strftime("%Y-%m-%d")
     
     # 市场数据
-    with open(MARKET_DIR / "index_valuation.json", 'r') as f:
+    with open(MARKET_DIR / "index_valuation.json", 'r', encoding='utf-8') as f:
         market = json.load(f)
     
-    # 个股数据
-    with open(STOCKS_DIR / f"{today}.json", 'r') as f:
-        stocks = json.load(f)
+    # 个股数据 (适配双榜单版结构)
+    with open(STOCKS_DIR / f"{today}.json", 'r', encoding='utf-8') as f:
+        stocks_obj = json.load(f)
+        # 核心逻辑：从 all_stocks 中提取个股字典
+        stocks = stocks_obj.get('all_stocks', stocks_obj) 
     
     return market, stocks
 

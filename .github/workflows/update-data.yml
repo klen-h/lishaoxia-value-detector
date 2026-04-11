@@ -2,8 +2,8 @@ name: 📊 大霄数据每日更新
 
 on:
   schedule:
-    # 工作日北京时间23:30（收盘后），UTC 15:30
-    - cron: '30 15 * * 1-5'
+    # 工作日北京时间 17:30（收盘后 2.5 小时），UTC 09:30
+    - cron: '30 9 * * 1-5'
   workflow_dispatch:
     inputs:
       force_update:
@@ -33,9 +33,13 @@ jobs:
         pip install -r requirements.txt
     
     - name: 🏪 获取市场数据（牛熊判断）
+      env:
+        TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
       run: python scripts/fetch_market.py
     
     - name: 📈 获取个股数据（全市场）
+      env:
+        TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
       run: python scripts/fetch_stocks.py
     
     - name: 🚨 计算预警信号
@@ -66,9 +70,11 @@ jobs:
         git push
     
     - name: 🔔 触发腾讯云刷新（可选）
-      if: ${{ secrets.TCB_WEBHOOK != '' }}
+      env:
+        TCB_WEBHOOK: ${{ secrets.TCB_WEBHOOK }}
+      if: env.TCB_WEBHOOK != ''
       run: |
-        curl -X POST ${{ secrets.TCB_WEBHOOK }} \
+        curl -X POST ${{ env.TCB_WEBHOOK }} \
              -H "Content-Type: application/json" \
              -d '{"action":"refresh_cache","date":"'$(date +%Y-%m-%d)'"}' \
              --silent --show-error || true

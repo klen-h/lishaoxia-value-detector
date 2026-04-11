@@ -57,12 +57,12 @@ def fetch_deep_fundamentals(code):
         latest = fin_df.iloc[0]
         return {
             "roe": float(latest['净资产收益率(%)']) if pd.notna(latest['净资产收益率(%)']) else 0,
-            "netprofit_growth": float(latest['净利润同比增长率(%)']) if pd.notna(latest['净利润同比增长率(%)']) else 0,
-            "revenue_growth": float(latest['主营业务收入同比增长率(%)']) if pd.notna(latest['主营业务收入同比增长率(%)']) else 0,
+            "netprofit_growth": float(latest['净利润增长率(%)']) if pd.notna(latest['净利润增长率(%)']) else 0,
+            "revenue_growth": float(latest['主营业务收入增长率(%)']) if pd.notna(latest['主营业务收入增长率(%)']) else 0,
             "debt_ratio": float(latest['资产负债率(%)']) if pd.notna(latest['资产负债率(%)']) else 0
         }
     except Exception as e:
-        # print(f"抓取 {code} 深度数据失败: {e}")
+        print(f"抓取 {code} 深度数据失败: {e}")
         return None
 
 def calculate_scores(row, fund):

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Data
+data/market/*
+data/stocks/*
+data/indicators/*
+data/history/*
+!data/**/.gitkeep
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE
+.vscode/
+.idea/
+.trae/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,74 @@
+name: 📊 大霄数据每日更新
+
+on:
+  schedule:
+    # 工作日北京时间23:30（收盘后），UTC 15:30
+    - cron: '30 15 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: '强制更新所有数据'
+        required: false
+        default: 'false'
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+    - name: ⬇️ 检出代码
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 🐍 设置Python环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: 📦 安装依赖
+      run: |
+        pip install -r requirements.txt
+    
+    - name: 🏪 获取市场数据（牛熊判断）
+      run: python scripts/fetch_market.py
+    
+    - name: 📈 获取个股数据（全市场）
+      run: python scripts/fetch_stocks.py
+    
+    - name: 🚨 计算预警信号
+      run: python scripts/calculate_signals.py
+    
+    - name: 📋 生成报告
+      run: python scripts/generate_reports.py
+    
+    - name: 💾 提交数据更新
+      run: |
+        git config --global user.name 'GitHub Action'
+        git config --global user.email 'action@github.com'
+        
+        DATE=$(date +%Y-%m-%d)
+        git add data/
+        
+        # 检查是否有变更
+        if git diff --cached --quiet; then
+          echo "无数据变更，跳过提交"
+          exit 0
+        fi
+        
+        # 读取市场状态用于提交信息
+        MARKET_STATUS=$(python -c "import json; print(json.load(open('data/market/index_valuation.json'))['hs300']['status'])")
+        SIGNAL_COUNT=$(python -c "import json; d=json.load(open('data/indicators/warning_signals.json')); print(len(d['buy']))")
+        
+        git commit -m "📊 ${DATE} | 市场:${MARKET_STATUS} | 抄底信号:${SIGNAL_COUNT}个"
+        git push
+    
+    - name: 🔔 触发腾讯云刷新（可选）
+      if: ${{ secrets.TCB_WEBHOOK != '' }}
+      run: |
+        curl -X POST ${{ secrets.TCB_WEBHOOK }} \
+             -H "Content-Type: application/json" \
+             -d '{"action":"refresh_cache","date":"'$(date +%Y-%m-%d)'"}' \
+             --silent --show-error || true

@@ -32,9 +32,10 @@ def fetch_all_quotes(retries=3):
             for col in ['price', 'pe', 'pb', 'total_mv', 'circ_mv']:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             
-            # 初步过滤：只看估值合理的股票，极大减少后续深度抓取的压力
-            mask = (df['pe'] > 0) & (df['pe'] < 40) & (df['pb'] > 0) & (df['pb'] < 4) & (df['total_mv'] > 50 * 1e8)
-            df_filtered = df[mask].copy()
+            # 初步过滤：放宽 PE/PB 限制，确保能筛选出足够的候选股
+        # PE 放宽到 60，PB 放宽到 6，市值放宽到 30 亿
+        mask = (df['pe'] > 0) & (df['pe'] < 60) & (df['pb'] > 0) & (df['pb'] < 6) & (df['total_mv'] > 30 * 1e8)
+        df_filtered = df[mask].copy()
             
             print(f"全市场 {len(df)} 只标的，初筛出 {len(df_filtered)} 只价值候选股")
             return df_filtered
@@ -125,15 +126,42 @@ def main():
         print("未能获取到初筛数据，任务中止")
         return
 
-    # 2. 排序并选择前 150 名（重点分析）
-    # 简单的估值排序：PE * PB 越小越好
-    candidates['val_index'] = candidates['pe'] * candidates['pb']
-    top_picks = candidates.sort_values('val_index').head(150).copy()
-    
     today = get_today_str()
     data = {}
     
-    print(f"开始深度分析前 {len(top_picks)} 只潜力股...")
+    # 先将所有初筛通过的股票（1165只）放入数据池，即使没有深度财务数据
+    print(f"正在将 {len(candidates)} 只初筛标的存入基础池...")
+    for _, row in candidates.iterrows():
+        code = row['code']
+        # 初始评分（仅基于 PE/PB/市值/动量）
+        # 给一个基础的 fund 对象，让计算不报错
+        dummy_fund = {"roe": 5, "netprofit_growth": 0, "revenue_growth": 0, "debt_ratio": 50}
+        scores = calculate_scores(row, dummy_fund)
+        overall = sum(scores[k] * SCORE_WEIGHTS[k] for k in scores)
+        
+        data[code] = {
+            "code": code,
+            "name": row['name'],
+            "price": float(row['price']),
+            "pe": float(row['pe']),
+            "pb": float(row['pb']),
+            "roe": 0, # 深度扫描前默认为 0
+            "profit_growth": 0,
+            "revenue_growth": 0,
+            "debt_ratio": 0,
+            "market_cap": round(row['total_mv'] / 1e8, 2),
+            "scores": {k: round(v, 1) for k, v in scores.items()},
+            "overall_score": round(overall, 1),
+            "update_time": datetime.now().isoformat(),
+            "is_deep_scanned": False
+        }
+
+    # 2. 排序并选择前 150 名（进行深度分析，更新 ROE 等数据）
+    # 排序逻辑：优先 PE * PB 小且市值大的（蓝筹/银行）
+    candidates['val_index'] = candidates['pe'] * candidates['pb']
+    top_picks = candidates.sort_values(['val_index', 'total_mv'], ascending=[True, False]).head(150).copy()
+    
+    print(f"开始深度分析前 {len(top_picks)} 只潜力股 (重点挖掘银行/蓝筹)...")
     
     for i, (_, row) in enumerate(top_picks.iterrows()):
         code = row['code']
@@ -144,24 +172,19 @@ def main():
         if not fund:
             continue
             
+        # 使用真实财务数据重新计算评分
         scores = calculate_scores(row, fund)
         overall = sum(scores[k] * SCORE_WEIGHTS[k] for k in scores)
         
-        data[code] = {
-            "code": code,
-            "name": row['name'],
-            "price": float(row['price']),
-            "pe": float(row['pe']),
-            "pb": float(row['pb']),
+        data[code].update({
             "roe": round(fund['roe'], 2),
             "profit_growth": round(fund['netprofit_growth'], 2),
             "revenue_growth": round(fund['revenue_growth'], 2),
             "debt_ratio": round(fund['debt_ratio'], 2),
-            "market_cap": round(row['total_mv'] / 1e8, 2), # 亿元
             "scores": {k: round(v, 1) for k, v in scores.items()},
             "overall_score": round(overall, 1),
-            "update_time": datetime.now().isoformat()
-        }
+            "is_deep_scanned": True
+        })
 
     # 保存结果
     output_file = STOCKS_DIR / f"{today}.json"

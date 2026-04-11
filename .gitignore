@@ -6,11 +6,9 @@ venv/
 .env
 
 # Data
-data/market/*
-data/stocks/*
-data/indicators/*
-data/history/*
-!data/**/.gitkeep
+# 允许提交 JSON 数据文件，以便前端展示
+!data/**/*.json
+!data/**/*.md
 
 # Node
 node_modules/

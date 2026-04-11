@@ -1,0 +1,142 @@
+{
+  "date": "2026-04-11",
+  "update_time": "2026-04-11T19:11:40.955077",
+  "hs300": {
+    "pe_ttm": 13.52,
+    "pb": 1.44,
+    "dividend_yield": 2.0,
+    "pe_percentile_10y": 82.0,
+    "pe_levels": {
+      "p10": 10.79,
+      "p25": 11.32,
+      "p50": 12.06,
+      "p75": 13.18,
+      "p90": 14.04
+    },
+    "status": "bull",
+    "description": "🐂 牛市 - 估值偏高",
+    "score": 40,
+    "risk_premium": 4.9,
+    "suggestion": "获利了结，降低仓位",
+    "allocation": {
+      "core": 35,
+      "satellite": 30,
+      "cash": 35,
+      "tactics": "获利减仓"
+    }
+  },
+  "zz500": {},
+  "sectors": [
+    {
+      "name": "玻璃行业",
+      "change": 2.2847100175747,
+      "leading_stocks": []
+    },
+    {
+      "name": "船舶制造",
+      "change": 1.3479923518164,
+      "leading_stocks": []
+    },
+    {
+      "name": "传媒娱乐",
+      "change": 0.67261115053531,
+      "leading_stocks": []
+    },
+    {
+      "name": "电力行业",
+      "change": 0.0513493467222,
+      "leading_stocks": []
+    },
+    {
+      "name": "电器行业",
+      "change": 3.134107112245,
+      "leading_stocks": []
+    },
+    {
+      "name": "电子器件",
+      "change": 1.1315708260467,
+      "leading_stocks": []
+    },
+    {
+      "name": "电子信息",
+      "change": 1.5588371504552,
+      "leading_stocks": []
+    },
+    {
+      "name": "房地产",
+      "change": 1.3049686648862,
+      "leading_stocks": []
+    },
+    {
+      "name": "发电设备",
+      "change": 1.5929949428732,
+      "leading_stocks": []
+    },
+    {
+      "name": "飞机制造",
+      "change": 0.75539743652225,
+      "leading_stocks": []
+    },
+    {
+      "name": "纺织行业",
+      "change": 1.9089468376315,
+      "leading_stocks": []
+    },
+    {
+      "name": "纺织机械",
+      "change": 1.0463764371528,
+      "leading_stocks": []
+    },
+    {
+      "name": "服装鞋类",
+      "change": 0.64843939027341,
+      "leading_stocks": []
+    },
+    {
+      "name": "公路桥梁",
+      "change": 8.6111862793587e-18,
+      "leading_stocks": []
+    },
+    {
+      "name": "供水供气",
+      "change": 0.80905293215589,
+      "leading_stocks": []
+    },
+    {
+      "name": "钢铁行业",
+      "change": 0.51685946345065,
+      "leading_stocks": []
+    },
+    {
+      "name": "环保行业",
+      "change": -0.1451534863717,
+      "leading_stocks": []
+    },
+    {
+      "name": "化工行业",
+      "change": 0.78130535624029,
+      "leading_stocks": []
+    },
+    {
+      "name": "化纤行业",
+      "change": 1.7691806129102,
+      "leading_stocks": []
+    },
+    {
+      "name": "家电行业",
+      "change": 0.91188462851748,
+      "leading_stocks": []
+    }
+  ],
+  "overall": {
+    "status": "bull",
+    "description": "🐂 牛市 - 估值偏高",
+    "suggestion": "获利了结，降低仓位",
+    "allocation": {
+      "core": 35,
+      "satellite": 30,
+      "cash": 35,
+      "tactics": "获利减仓"
+    }
+  }
+}

@@ -95,6 +95,7 @@ def fetch_deep_fundamentals(code):
         }
         
     except Exception as e:
+        print(f"获取 {code} 财务数据失败: {e}")
         return None
 
 def calculate_dual_scores(row, fund):
@@ -226,12 +227,35 @@ def main():
         (candidates['pe'] > 15) & (candidates['pe'] <= 40)
     ]
     
+    # 【调试用】保存初筛数据
+    debug_file = STOCKS_DIR / "candidates_debug.json"
+    try:
+        debug_data = {
+            "update_time": datetime.now().isoformat(),
+            "value_candidates_count": len(value_candidates),
+            "growth_candidates_count": len(growth_candidates),
+            "value_candidates": value_candidates.to_dict('records'),
+            "growth_candidates": growth_candidates.to_dict('records')
+        }
+        with open(debug_file, 'w', encoding='utf-8') as f:
+            json.dump(debug_data, f, ensure_ascii=False, indent=2)
+        print(f"  - 调试数据已保存: {debug_file}")
+    except Exception as e:
+        print(f"  - 保存调试数据失败: {e}")
+    
     # 合并，成长池优先（确保成长股不被价值股淹没）
     scan_targets = pd.concat([growth_candidates, value_candidates]).drop_duplicates('code').head(300)
     
-    print(f"\n扫描策略: {len(scan_targets)} 只")
-    print(f"  - 成长候选: {len(growth_candidates)} 只")
-    print(f"  - 价值候选: {len(value_candidates)} 只")
+    # 扫描策略汇总
+    scan_summary = {
+        "total_scan": len(scan_targets),
+        "growth_candidates": len(growth_candidates),
+        "value_candidates": len(value_candidates)
+    }
+    
+    print(f"\n扫描策略: {scan_summary['total_scan']} 只")
+    print(f"  - 成长候选: {scan_summary['growth_candidates']} 只")
+    print(f"  - 价值候选: {scan_summary['value_candidates']} 只")
     
     # 3. 深度扫描
     data = {}
@@ -297,6 +321,7 @@ def main():
     output = {
         "date": today,
         "update_time": datetime.now().isoformat(),
+        "scan_summary": scan_summary,
         "total_stocks": len(data),
         "top_good_stocks": [v for _, v in top_good],
         "top_growth_stocks": [v for _, v in top_growth],

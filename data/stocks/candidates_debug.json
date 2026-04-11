@@ -1,0 +1,39 @@
+{
+  "update_time": "2026-04-11T22:47:57.658787",
+  "value_candidates_count": 1,
+  "growth_candidates_count": 2,
+  "value_candidates": [
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "price": 200.0,
+      "change_pct": 1.2,
+      "pe": 25.0,
+      "pb": 5.5,
+      "total_mv": 800000000000.0,
+      "circ_mv": 800000000000.0
+    }
+  ],
+  "growth_candidates": [
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "price": 200.0,
+      "change_pct": 1.2,
+      "pe": 25.0,
+      "pb": 5.5,
+      "total_mv": 800000000000.0,
+      "circ_mv": 800000000000.0
+    },
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "price": 1600.0,
+      "change_pct": 0.1,
+      "pe": 28.0,
+      "pb": 8.0,
+      "total_mv": 2000000000000.0,
+      "circ_mv": 2000000000000.0
+    }
+  ]
+}

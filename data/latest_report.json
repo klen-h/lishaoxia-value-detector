@@ -1,5 +1,10 @@
 {
   "update_date": "2026-04-11",
+  "scan_summary": {
+    "total_scan": 10,
+    "growth_candidates": 5,
+    "value_candidates": 5
+  },
   "market": {
     "trend": "BULL",
     "description": "🐂 牛市 - 估值偏高",
@@ -11,7 +16,35 @@
       "tactics": "获利减仓"
     }
   },
-  "top_good": [],
-  "top_growth": [],
+  "all_stocks": [
+    {
+      "code": "600036.SH",
+      "name": "招商银行",
+      "price": 35.5,
+      "pe": 5.5,
+      "roe": 15.2,
+      "profit_growth": 10.5,
+      "score_balanced": 85.0,
+      "score_growth": 65.0,
+      "tags": [
+        "好股票",
+        "价值蓝筹"
+      ]
+    },
+    {
+      "code": "300750.SZ",
+      "name": "宁德时代",
+      "price": 200.0,
+      "pe": 25.0,
+      "roe": 25.5,
+      "profit_growth": 45.0,
+      "score_balanced": 70.0,
+      "score_growth": 88.0,
+      "tags": [
+        "优质成长",
+        "高成长"
+      ]
+    }
+  ],
   "top_picks": []
 }

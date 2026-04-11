@@ -22,6 +22,8 @@ def generate_daily_report():
     # 加载双榜单数据
     with open(DATA_DIR / "stocks/latest.json", 'r', encoding='utf-8') as f:
         stocks_data = json.load(f)
+        all_stocks = list(stocks_data.get('all_stocks', {}).values())
+        # 保持旧逻辑用于 Markdown 报告生成
         top_good = stocks_data.get('top_good_stocks', [])
         top_growth = stocks_data.get('top_growth_stocks', [])
     
@@ -93,14 +95,14 @@ def generate_daily_report():
     # 组装 web_report (增加双榜单字段)
     web_report = {
         "update_date": today,
+        "scan_summary": stocks_data.get('scan_summary', {}),
         "market": {
             "trend": market['overall']['status'].upper().replace('EXTREME_', ''),
             "description": market['overall']['description'],
             "suggestion": market['overall']['suggestion'],
             "allocation": market['overall']['allocation']
         },
-        "top_good": top_good[:10],
-        "top_growth": top_growth[:10],
+        "all_stocks": all_stocks,  # 将所有入选股票传给前端
         "top_picks": [] # 保持兼容性
     }
     

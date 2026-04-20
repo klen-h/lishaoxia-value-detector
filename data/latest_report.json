@@ -1,9 +1,9 @@
 {
-  "update_date": "2026-04-16",
+  "update_date": "2026-04-20",
   "scan_summary": {
     "total_scan": 300,
-    "growth_candidates": 548,
-    "value_candidates": 123
+    "growth_candidates": 525,
+    "value_candidates": 118
   },
   "market": {
     "trend": "BULL",

@@ -1,11 +1,11 @@
 {
-  "date": "2026-04-21",
-  "update_time": "2026-04-21T10:50:36.951858",
+  "date": "2026-04-22",
+  "update_time": "2026-04-22T10:48:19.421007",
   "hs300": {
-    "pe_ttm": 13.85,
+    "pe_ttm": 13.87,
     "pb": 1.47,
     "dividend_yield": 2.0,
-    "pe_percentile_10y": 86.4,
+    "pe_percentile_10y": 86.6,
     "pe_levels": {
       "p10": 10.79,
       "p25": 11.33,
@@ -16,7 +16,7 @@
     "status": "bull",
     "description": "🐂 牛市 - 估值偏高",
     "score": 40,
-    "risk_premium": 4.72,
+    "risk_premium": 4.71,
     "suggestion": "获利了结，降低仓位",
     "allocation": {
       "core": 35,
@@ -26,108 +26,108 @@
     }
   },
   "zz500": {
-    "pe_ttm": 29.86,
-    "pe_percentile": 84.1
+    "pe_ttm": 30.3,
+    "pe_percentile": 84.5
   },
   "sectors": [
     {
       "name": "玻璃行业",
-      "change": 1.0449695332102,
+      "change": 3.0342719930146,
       "leading_stocks": []
     },
     {
       "name": "船舶制造",
-      "change": 0.01777935816517,
+      "change": -1.0487956626078,
       "leading_stocks": []
     },
     {
       "name": "传媒娱乐",
-      "change": -0.55201322470185,
+      "change": -0.24637121909229,
       "leading_stocks": []
     },
     {
       "name": "电力行业",
-      "change": 1.2998647116896,
+      "change": 0.65873775018499,
       "leading_stocks": []
     },
     {
       "name": "电器行业",
-      "change": -0.53743155569871,
+      "change": 1.1010260822901,
       "leading_stocks": []
     },
     {
       "name": "电子器件",
-      "change": -0.51463350386114,
+      "change": 2.3637848429021,
       "leading_stocks": []
     },
     {
       "name": "电子信息",
-      "change": -1.3596754135614,
+      "change": 2.4440942314485,
       "leading_stocks": []
     },
     {
       "name": "房地产",
-      "change": -0.7045044814668,
+      "change": 0.9153347957798,
       "leading_stocks": []
     },
     {
       "name": "发电设备",
-      "change": -0.96225412014886,
+      "change": 1.425895179835,
       "leading_stocks": []
     },
     {
       "name": "飞机制造",
-      "change": -0.095640569395018,
+      "change": -0.36957054122047,
       "leading_stocks": []
     },
     {
       "name": "纺织行业",
-      "change": -0.77399910955855,
+      "change": -0.84906637213958,
       "leading_stocks": []
     },
     {
       "name": "纺织机械",
-      "change": 0.83354706334958,
+      "change": -0.91568103777184,
       "leading_stocks": []
     },
     {
       "name": "服装鞋类",
-      "change": 0.21837239772893,
+      "change": -0.21063335270192,
       "leading_stocks": []
     },
     {
       "name": "公路桥梁",
-      "change": 0.90738167252514,
+      "change": 0.18632534024627,
       "leading_stocks": []
     },
     {
       "name": "供水供气",
-      "change": 0.60947265120603,
+      "change": -0.31829149340315,
       "leading_stocks": []
     },
     {
       "name": "钢铁行业",
-      "change": -0.4735781939742,
+      "change": 0.42631069006352,
       "leading_stocks": []
     },
     {
       "name": "环保行业",
-      "change": 0.80575848732273,
+      "change": -0.73537248214857,
       "leading_stocks": []
     },
     {
       "name": "化工行业",
-      "change": 0.81168535229241,
+      "change": 0.93399216097576,
       "leading_stocks": []
     },
     {
       "name": "化纤行业",
-      "change": 0.66522534508565,
+      "change": 0.95407236081282,
       "leading_stocks": []
     },
     {
       "name": "家电行业",
-      "change": -0.27877645973122,
+      "change": -0.042415362072954,
       "leading_stocks": []
     }
   ],

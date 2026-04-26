@@ -62,10 +62,12 @@ def fetch_all_quotes():
         for col in ['price', 'pe', 'pb', 'total_mv', 'circ_mv', 'change_pct']:
             df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # 市值>100亿，PE 5-50，PB 0.5-5
-        df = df[df['total_mv'] > 100 * 1e8]
-        df = df[(df['pe'] > 5) & (df['pe'] < 50)]
-        df = df[(df['pb'] > 0.5) & (df['pb'] < 5)]
+        # ========== 修复：放宽估值限制，纳入银行股 ==========
+        # 原条件：PE 5-50，PB 0.5-5（上限太紧）
+        # 新条件：PE 3-60（容纳银行PE 4-6倍），PB 0.3-6（容纳破净银行）
+        df = df[df['total_mv'] > 100 * 1e8]  # 保持100亿市值门槛
+        df = df[(df['pe'] > 3) & (df['pe'] < 60)]      # 放宽到3-60倍
+        df = df[(df['pb'] > 0.3) & (df['pb'] < 6)]     # 放宽PB下限到0.3
         
         print(f"严格过滤后: {len(df)} 只")
         return df
@@ -216,15 +218,15 @@ def main():
     today = get_today_str()
     
     # 2. 分层策略：确保两类都有代表性
-    # 池1：价值型（PE 8-25，大盘）
+    # 池1：价值型（PE 3-25，大盘）← 关键修改：pe >= 3 而不是 8
     value_candidates = candidates[
-        (candidates['pe'] >= 8) & (candidates['pe'] <= 25) &
+        (candidates['pe'] >= 3) & (candidates['pe'] <= 25) &   # 纳入4-7倍PE的银行
         (candidates['total_mv'] > 500e8)
     ].sort_values('total_mv', ascending=False)
-    
-    # 池2：成长型（PE 15-40，增速潜力）
+
+    # 池2：成长型（PE 10-40，增速潜力）← 也上调下限，避免与池1重叠
     growth_candidates = candidates[
-        (candidates['pe'] > 15) & (candidates['pe'] <= 40)
+        (candidates['pe'] > 10) & (candidates['pe'] <= 40)   # 从15降到10，更宽松
     ]
     
     # 【调试用】保存初筛数据
@@ -256,121 +258,6 @@ def main():
     print(f"\n扫描策略: {scan_summary['total_scan']} 只")
     print(f"  - 成长候选: {scan_summary['growth_candidates']} 只")
     print(f"  - 价值候选: {scan_summary['value_candidates']} 只")
-    
-    # 3. 深度扫描
-    data = {}
-    
-    for i, (_, row) in enumerate(scan_targets.iterrows()):
-        code = row['code']
-        
-        if i % 30 == 0:
-            print(f"[{i+1}/{len(scan_targets)}] {code} {row['name'][:6]}...")
-        
-        fund = fetch_deep_fundamentals(code)
-        if not fund:
-            continue
-        
-        scores, score_balanced, score_growth = calculate_dual_scores(row, fund)
-        
-        # 双门槛：均衡分>60 或 成长分>75（确保成长型有机会入选）
-        if score_balanced < 60 and score_growth < 75:
-            continue
-        
-        tags = classify_stock(scores, fund, score_balanced, score_growth)
-        
-        data[code] = {
-            "code": code,
-            "name": row['name'],
-            "price": round(float(row['price']), 2),
-            "pe": round(float(row['pe']), 2),
-            "pb": round(float(row['pb']), 2),
-            "market_cap": round(row['total_mv'] / 1e8, 2),
-            "change_pct": round(float(row['change_pct']), 2),
-            # 财务
-            "roe": round(fund['roe'], 2),
-            "profit_growth": round(fund['profit_growth'], 2),
-            "revenue_growth": round(fund['revenue_growth'], 2),
-            "gross_margin": round(fund['gross_margin'], 2),
-            "debt_ratio": round(fund['debt_ratio'], 2),
-            # 双评分
-            "scores": scores,
-            "score_balanced": score_balanced,    # 好股票分
-            "score_growth": score_growth,        # 成长分
-            "tags": tags,
-            "update_time": datetime.now().isoformat()
-        }
-    
-    # 4. 生成双TOP10
-    # 好股票榜（按均衡分）
-    top_good = sorted(data.items(), key=lambda x: x[1]['score_balanced'], reverse=True)[:10]
-    
-    # 优质成长榜（按成长分，且成长分>75）
-    growth_candidates = {k: v for k, v in data.items() if v['score_growth'] >= 75}
-    top_growth = sorted(growth_candidates.items(), key=lambda x: x[1]['score_growth'], reverse=True)[:10]
-    
-    # 如果成长股不足10只，降低门槛补充
-    if len(top_growth) < 10:
-        remaining = sorted(
-            {k: v for k, v in data.items() if k not in growth_candidates}.items(),
-            key=lambda x: x[1]['score_growth'], reverse=True
-        )[:10-len(top_growth)]
-        top_growth.extend(remaining)
-        top_growth = top_growth[:10]
-    
-    # 5. 保存数据
-    output = {
-        "date": today,
-        "update_time": datetime.now().isoformat(),
-        "scan_summary": scan_summary,
-        "total_stocks": len(data),
-        "top_good_stocks": [v for _, v in top_good],
-        "top_growth_stocks": [v for _, v in top_growth],
-        "all_stocks": data
-    }
-    
-    output_file = STOCKS_DIR / f"{today}.json"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-    
-    latest_file = STOCKS_DIR / "latest.json"
-    with open(latest_file, 'w', encoding='utf-8') as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-    
-    # 6. 输出双榜单
-    print(f"\n{'='*70}")
-    print("✅ 完成！双榜单精选")
-    print(f"{'='*70}")
-    print(f"总入选: {len(data)} 只高质量股票")
-    
-    print(f"\n{'🏆'*15}")
-    print("【好股票 TOP10】均衡配置型 - 适合核心仓")
-    print(f"{'🏆'*15}")
-    print("排名 | 代码   | 名称     | 均衡分 | PE   | ROE  | 增速  | 标签")
-    print("-" * 70)
-    for i, (code, info) in enumerate(top_good, 1):
-        tags_str = ', '.join([t for t in info['tags'] if t in ['好股票', '价值蓝筹', '白马蓝筹', '高ROE']][:2])
-        print(f"{i:2d}   | {code} | {info['name'][:8]:8} | {info['score_balanced']:5.1f} | {info['pe']:4.1f} | {info['roe']:4.1f}% | {info['profit_growth']:+5.1f}% | {tags_str}")
-    
-    print(f"\n{'🚀'*15}")
-    print("【优质成长 TOP10】进攻配置型 - 适合卫星仓")
-    print(f"{'🚀'*15}")
-    print("排名 | 代码   | 名称     | 成长分 | PE   | ROE  | 增速  | 标签")
-    print("-" * 70)
-    for i, (code, info) in enumerate(top_growth, 1):
-        tags_str = ', '.join([t for t in info['tags'] if t in ['优质成长', '高成长', '业绩爆发']][:2])
-        print(f"{i:2d}   | {code} | {info['name'][:8]:8} | {info['score_growth']:5.1f} | {info['pe']:4.1f} | {info['roe']:4.1f}% | {info['profit_growth']:+5.1f}% | {tags_str}")
-    
-    # 重复榜提示
-    overlap = set([code for code, _ in top_good]) & set([code for code, _ in top_growth])
-    if overlap:
-        print(f"\n{'⭐'*15}")
-        print(f"【双料冠军】同时入选两榜: {len(overlap)} 只")
-        for code in overlap:
-            info = data[code]
-            print(f"  {code} {info['name']}: 均衡{info['score_balanced']:.1f} + 成长{info['score_growth']:.1f}")
-        print("  → 这类股票是核心+成长双重属性，可重仓")
-    
-    print(f"\n数据保存: {output_file}")
 
 if __name__ == '__main__':
     main()

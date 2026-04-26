@@ -26,6 +26,14 @@ def generate_daily_report():
         # 保持旧逻辑用于 Markdown 报告生成
         top_good = stocks_data.get('top_good_stocks', [])
         top_growth = stocks_data.get('top_growth_stocks', [])
+
+    # 加载初筛调试数据 (candidates_debug.json) 
+    candidates_debug = {}
+    try:
+        with open(DATA_DIR / "stocks/candidates_debug.json", 'r', encoding='utf-8') as f:
+            candidates_debug = json.load(f)
+    except Exception as e:
+        print(f"⚠️ 加载调试数据失败: {e}")
     
     # 生成Markdown报告
     report_file = DATA_DIR / "reports" / f"report_{today}.md"
@@ -96,6 +104,10 @@ def generate_daily_report():
     web_report = {
         "update_date": today,
         "scan_summary": stocks_data.get('scan_summary', {}),
+        "candidates_count": {
+            "value": candidates_debug.get('value_candidates_count', 0),
+            "growth": candidates_debug.get('growth_candidates_count', 0)
+        },
         "market": {
             "trend": market['overall']['status'].upper().replace('EXTREME_', ''),
             "description": market['overall']['description'],

@@ -1,9 +1,9 @@
 {
-  "date": "2026-04-24",
-  "update_time": "2026-04-24T10:59:16.152713",
+  "date": "2026-04-22",
+  "update_time": "2026-04-22T10:57:40.430113",
   "scan_summary": {
     "total_scan": 300,
-    "growth_candidates": 495,
+    "growth_candidates": 512,
     "value_candidates": 119
   },
   "total_stocks": 0,

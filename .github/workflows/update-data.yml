@@ -1,9 +1,6 @@
 name: 📊 大霄数据每日更新
 
 on:
-  schedule:
-    # 工作日北京时间 17:30（收盘后 2.5 小时），UTC 09:30
-    - cron: '30 9 * * 1-5'
   workflow_dispatch:
     inputs:
       force_update:
